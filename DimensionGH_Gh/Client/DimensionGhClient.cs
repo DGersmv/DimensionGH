@@ -16,9 +16,9 @@ namespace DimensionGhGh.Client
         private string baseUrl;
 
 
-        public string Host { get; set; } = "127.0.0.1";
+		public string Host { get; set; } = "127.0.0.1";
 		public int Port { get; set; } = 19723; // Default port, can be changed
-		public TimeSpan Timeout { get; set; } = TimeSpan.FromSeconds(3);
+		public TimeSpan Timeout { get; set; } = TimeSpan.FromSeconds(10); // Increased timeout to prevent hanging
 
 		public DimensionGhClient()
 		{
@@ -96,10 +96,27 @@ namespace DimensionGhGh.Client
 
 		/// <summary>
 		/// Synchronous version of Send
+		/// Uses Task.Run to avoid blocking UI thread in Grasshopper
 		/// </summary>
 		public JsonResponse Send(JsonRequest request)
 		{
-			return SendAsync(request).GetAwaiter().GetResult();
+			try
+			{
+				// Use Task.Run to execute async operation in background thread
+				// This prevents blocking the Grasshopper UI thread
+				return Task.Run(async () => await SendAsync(request)).GetAwaiter().GetResult();
+			}
+			catch (Exception ex)
+			{
+				return new JsonResponse
+				{
+					Succeeded = false,
+					Error = new Newtonsoft.Json.Linq.JObject
+					{
+						["message"] = $"Connection error: {ex.Message}"
+					}
+				};
+			}
 		}
 
 		/// <summary>

@@ -49,6 +49,7 @@
     <Reference Include="System.Xml" />
     <Reference Include="Newtonsoft.Json">
       <HintPath>..\packages\Newtonsoft.Json.13.0.3\lib\net45\Newtonsoft.Json.dll</HintPath>
+      <Private>True</Private>
     </Reference>
     <!-- Grasshopper and Rhino references - update paths to your installation -->
     <Reference Include="RhinoCommon">
@@ -59,21 +60,27 @@
   <ItemGroup>
     <Compile Include="Client\DimensionGhClient.cs" />
     <Compile Include="Components\DimConnectComponent.cs" />
+    <Compile Include="Components\DimGetDimensionsComponent.cs" />
     <Compile Include="Menu\DimensionGhMenu.cs" />
     <Compile Include="Protocol\DimensionDto.cs" />
     <Compile Include="Protocol\JsonRequest.cs" />
     <Compile Include="Protocol\JsonResponse.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Properties\GrasshopperInfo.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include=".gitignore" />
     <None Include="README.md" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\Info227Icon.svg" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- Post-build event to copy to Grasshopper libraries -->
   <PropertyGroup>
     <PostBuildEvent>if not exist "%25APPDATA%\Grasshopper\Libraries" mkdir "%25APPDATA%\Grasshopper\Libraries"
 copy "$(TargetPath)" "%25APPDATA%\Grasshopper\Libraries\DimensionGH_Gh.gha"
+if exist "$(TargetDir)Newtonsoft.Json.dll" copy "$(TargetDir)Newtonsoft.Json.dll" "%25APPDATA%\Grasshopper\Libraries\Newtonsoft.Json.dll"
 echo DimensionGH_Gh.gha copied to Grasshopper Libraries</PostBuildEvent>
   </PropertyGroup>
 </Project>

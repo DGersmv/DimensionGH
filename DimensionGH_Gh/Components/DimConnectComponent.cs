@@ -16,7 +16,7 @@ namespace DimensionGhGh.Components
 		public DimConnectComponent()
 			: base("Dim_Connect", "DimConnect",
 				"Test connection to Archicad Dimension_Gh add-on",
-				"227info", "Connection")
+				"Info227", "Connection")
 		{
 		}
 
@@ -38,7 +38,8 @@ namespace DimensionGhGh.Components
 			int port = 19723;
 			bool ping = false;
 
-			if (!DA.GetData(0, ref port)) return;
+			// Port has default value, so GetData will always succeed (uses default if not connected)
+			DA.GetData(0, ref port);
 			DA.GetData(1, ref ping);
 
 			if (!ping)
@@ -50,8 +51,15 @@ namespace DimensionGhGh.Components
 
 			try
 			{
-				var client = new DimensionGhClient(port);
+				// Create client with timeout to prevent hanging
+				var client = new DimensionGhClient(port)
+				{
+					Timeout = System.TimeSpan.FromSeconds(10) // 10 second timeout
+				};
+
 				var request = JsonRequest.CreateDimensionGhCommand("Ping");
+				
+				// Send request with timeout handling
 				var response = client.Send(request);
 
 				if (response.Succeeded)
@@ -71,9 +79,26 @@ namespace DimensionGhGh.Components
 				else
 				{
 					DA.SetData(0, false);
-					DA.SetData(1, response.GetErrorMessage());
-					AddRuntimeMessage(GH_RuntimeMessageLevel.Error, response.GetErrorMessage());
+					var errorMsg = response.GetErrorMessage();
+					DA.SetData(1, errorMsg);
+					
+					// Only show error if it's not a timeout (timeout is expected if Archicad is not running)
+					var errorMsgLower = errorMsg.ToLowerInvariant();
+					if (!errorMsgLower.Contains("timeout") && 
+					    !errorMsgLower.Contains("connection refused") &&
+					    !errorMsgLower.Contains("no connection"))
+					{
+						AddRuntimeMessage(GH_RuntimeMessageLevel.Warning, errorMsg);
+					}
 				}
+			}
+			catch (System.Net.Http.HttpRequestException ex)
+			{
+				// Connection errors - Archicad might not be running
+				DA.SetData(0, false);
+				DA.SetData(1, $"Cannot connect to Archicad on port {port}. Make sure Archicad is running with Dimension_Gh add-on loaded.");
+				AddRuntimeMessage(GH_RuntimeMessageLevel.Warning, 
+					$"Connection failed: {ex.Message}. Check if Archicad is running.");
 			}
 			catch (Exception ex)
 			{
@@ -83,9 +108,112 @@ namespace DimensionGhGh.Components
 			}
 		}
 
-		protected override Bitmap Icon => null; // TODO: Add icon
+		protected override Bitmap Icon
+		{
+			get
+			{
+				return LoadComponentIcon();
+			}
+		}
 
-		public override Guid ComponentGuid => new Guid("D1M2N3S4-5678-90AB-CDEF-1234567890AB");
+		/// <summary>
+		/// Load component icon from resources
+		/// </summary>
+		private Bitmap LoadComponentIcon()
+		{
+			try
+			{
+				var assembly = System.Reflection.Assembly.GetExecutingAssembly();
+				var resourceName = "DimensionGhGh.Resources.Info227Icon.svg";
+				
+				using (var stream = assembly.GetManifestResourceStream(resourceName))
+				{
+					if (stream == null)
+					{
+						// Try to load from file if not embedded
+						var iconPath = System.IO.Path.Combine(
+							System.IO.Path.GetDirectoryName(assembly.Location), 
+							"Resources", "Info227Icon.svg");
+						if (System.IO.File.Exists(iconPath))
+						{
+							return CreateIconFromSvg(System.IO.File.ReadAllText(iconPath));
+						}
+						return CreateDefaultIcon();
+					}
+					
+					using (var reader = new System.IO.StreamReader(stream))
+					{
+						var svgContent = reader.ReadToEnd();
+						return CreateIconFromSvg(svgContent);
+					}
+				}
+			}
+			catch
+			{
+				return CreateDefaultIcon();
+			}
+		}
+
+		/// <summary>
+		/// Create icon from SVG content
+		/// </summary>
+		private Bitmap CreateIconFromSvg(string svgContent)
+		{
+			// Create a bitmap representation based on the SVG design
+			var bitmap = new Bitmap(24, 24);
+			using (var g = Graphics.FromImage(bitmap))
+			{
+				g.Clear(Color.Transparent);
+				g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+				
+				// Draw dimension lines representation based on SVG
+				using (var pen = new Pen(Color.Black, 2))
+				{
+					// Main horizontal line
+					g.DrawLine(pen, 2, 12, 22, 12);
+					
+					// Left and right markers
+					g.DrawLine(pen, 2, 8, 2, 16);
+					g.DrawLine(pen, 22, 8, 22, 16);
+					
+					// Arrow heads
+					g.DrawLine(pen, 2, 8, 4, 12);
+					g.DrawLine(pen, 2, 16, 4, 12);
+					g.DrawLine(pen, 22, 8, 20, 12);
+					g.DrawLine(pen, 22, 16, 20, 12);
+					
+					// Extension lines (vertical lines at top and bottom)
+					g.DrawLine(pen, 1, 4, 1, 8);
+					g.DrawLine(pen, 23, 4, 23, 8);
+					g.DrawLine(pen, 1, 16, 1, 20);
+					g.DrawLine(pen, 23, 16, 23, 20);
+				}
+			}
+			return bitmap;
+		}
+
+		/// <summary>
+		/// Create a default icon if SVG loading fails
+		/// </summary>
+		private Bitmap CreateDefaultIcon()
+		{
+			var bitmap = new Bitmap(24, 24);
+			using (var g = Graphics.FromImage(bitmap))
+			{
+				g.Clear(Color.Transparent);
+				g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+				
+				using (var pen = new Pen(Color.Black, 2))
+				{
+					g.DrawLine(pen, 2, 12, 22, 12);
+					g.DrawLine(pen, 2, 8, 2, 16);
+					g.DrawLine(pen, 22, 8, 22, 16);
+				}
+			}
+			return bitmap;
+		}
+
+		public override Guid ComponentGuid => new Guid("3165ca30-9747-4a2e-b551-4d26af1a2dc6");
 	}
 }
 
