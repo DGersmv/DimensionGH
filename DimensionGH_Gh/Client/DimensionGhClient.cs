@@ -13,9 +13,10 @@ namespace DimensionGhGh.Client
 	public class DimensionGhClient
 	{
 		private readonly HttpClient httpClient;
-		private readonly string baseUrl;
+        private string baseUrl;
 
-		public string Host { get; set; } = "127.0.0.1";
+
+        public string Host { get; set; } = "127.0.0.1";
 		public int Port { get; set; } = 19723; // Default port, can be changed
 		public TimeSpan Timeout { get; set; } = TimeSpan.FromSeconds(3);
 

@@ -31,8 +31,15 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="GH_IO">
+      <HintPath>C:\Program Files\Rhino 8\Plug-ins\Grasshopper\GH_IO.dll</HintPath>
+    </Reference>
+    <Reference Include="Grasshopper">
+      <HintPath>C:\Program Files\Rhino 8\Plug-ins\Grasshopper\Grasshopper.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
+    <Reference Include="System.Drawing" />
     <Reference Include="System.Net.Http" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
@@ -44,14 +51,6 @@
       <HintPath>..\packages\Newtonsoft.Json.13.0.3\lib\net45\Newtonsoft.Json.dll</HintPath>
     </Reference>
     <!-- Grasshopper and Rhino references - update paths to your installation -->
-    <Reference Include="Grasshopper">
-      <HintPath>C:\Program Files\Rhino 8\System\Grasshopper.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="GH_IO">
-      <HintPath>C:\Program Files\Rhino 8\System\GH_IO.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
     <Reference Include="RhinoCommon">
       <HintPath>C:\Program Files\Rhino 8\System\RhinoCommon.dll</HintPath>
       <Private>False</Private>
@@ -73,13 +72,10 @@
   <!-- Post-build event to copy to Grasshopper libraries -->
   <PropertyGroup>
     <PostBuildEvent>
-      if not exist "%25APPDATA%\Grasshopper\Libraries\Dimension_Gh" mkdir "%25APPDATA%\Grasshopper\Libraries\Dimension_Gh"
-      copy "$(TargetPath)" "%25APPDATA%\Grasshopper\Libraries\Dimension_Gh\DimensionGH_Gh.gha"
-    </PostBuildEvent>
+</PostBuildEvent>
   </PropertyGroup>
   <PropertyGroup>
-    <PreBuildEvent>if not exist "%25AppData%25\Grasshopper\Libraries\DimensionGh" mkdir "%25AppData%25\Grasshopper\Libraries\DimensionGh"
-copy "$(TargetPath)" "%25AppData%25\Grasshopper\Libraries\DimensionGh\DimensionGh.gha" /Y
-</PreBuildEvent>
+    <PreBuildEvent>
+    </PreBuildEvent>
   </PropertyGroup>
 </Project>
