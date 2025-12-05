@@ -16,7 +16,7 @@ namespace DimensionGhGh.Components
 		public DimConnectComponent()
 			: base("Dim_Connect", "DimConnect",
 				"Test connection to Archicad Dimension_Gh add-on",
-				"Dimension Gh", "Connection")
+				"227info", "Connection")
 		{
 		}
 
