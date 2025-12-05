@@ -5,6 +5,7 @@
 // ---------------------------------- Includes ---------------------------------
 
 #include	"BrowserPalette.hpp"
+#include	"Bridge.hpp"
 
 static const GS::Guid	paletteGuid ("{25F1FEE1-F0C1-4BE4-AC99-42FB1C7CD594}");
 
@@ -128,12 +129,22 @@ void BrowserPalette::InitBrowserControl ()
 	browser.LoadHTML (LoadHtmlFromResource ());
 	RegisterACAPIJavaScriptObject ();
 	UpdateSelectedElementsOnHTML ();
+	// Update HTTP port display
+	browser.ExecuteJS ("UpdateHttpPort ()");
 }
 
 void  BrowserPalette::RegisterACAPIJavaScriptObject ()
 {
 	JS::Object* jsACAPI = new JS::Object ("ACAPI");
 
+	// Main JSON command handler
+	jsACAPI->AddItem (new JS::Function ("HandleJsonRequest", [] (GS::Ref<JS::Base> param) {
+		GS::UniString jsonRequest = GetStringFromJavaScriptVariable (param);
+		GS::UniString jsonResponse = HandleJsonRequest (jsonRequest);
+		return ConvertToJavaScriptVariable (jsonResponse);
+	}));
+
+	// Keep old functions for backward compatibility (can be removed later)
 	jsACAPI->AddItem (new JS::Function ("GetSelectedElements", [] (GS::Ref<JS::Base>) {
 		return ConvertToJavaScriptVariable (GetSelectedElements ());
 	}));
@@ -146,6 +157,15 @@ void  BrowserPalette::RegisterACAPIJavaScriptObject ()
 	jsACAPI->AddItem (new JS::Function ("RemoveElementFromSelection", [] (GS::Ref<JS::Base> param) {
 		ModifySelection (GetStringFromJavaScriptVariable (param), RemoveFromSelection);
 		return ConvertToJavaScriptVariable (true);
+	}));
+
+	jsACAPI->AddItem (new JS::Function ("GetHttpPort", [] (GS::Ref<JS::Base>) {
+		UShort port = 0;
+		GSErrCode err = ACAPI_Command_GetHttpConnectionPort (&port);
+		if (err == NoError && port > 0) {
+			return ConvertToJavaScriptVariable ((Int32)port);
+		}
+		return ConvertToJavaScriptVariable ((Int32)0);
 	}));
 
 	browser.RegisterAsynchJSObject (jsACAPI);

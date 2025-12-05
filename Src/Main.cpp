@@ -11,6 +11,7 @@
 #include	"APIEnvir.h"
 #include	"ACAPinc.h"		// also includes APIdefs.h
 #include	"BrowserPalette.hpp"
+#include	"DimensionCommands.hpp"
 
 // -----------------------------------------------------------------------------
 // Show or Hide Browser Palette
@@ -99,6 +100,30 @@ GSErrCode Initialize (void)
 	err = BrowserPalette::RegisterPaletteControlCallBack ();
 	if (DBERROR (err != NoError))
 		return err;
+
+	// Register DimensionGh commands for Grasshopper bridge
+	// Note: If registration fails, we continue - commands may not be available but add-on should still work
+	
+	err = ACAPI_AddOnAddOnCommunication_InstallAddOnCommandHandler (GS::NewOwned<GetPortCommand> ());
+	if (DBERROR (err != NoError)) {
+		// Command registration failed - log but don't fail initialization
+	}
+
+	err = ACAPI_AddOnAddOnCommunication_InstallAddOnCommandHandler (GS::NewOwned<PingCommand> ());
+	if (DBERROR (err != NoError)) {
+		// Command registration failed - log but don't fail initialization
+	}
+
+	// Temporarily disable other commands to test
+	// err = ACAPI_AddOnAddOnCommunication_InstallAddOnCommandHandler (GS::NewOwned<GetDimensionsCommand> ());
+	// if (DBERROR (err != NoError)) {
+	// 	// Command registration failed - log but don't fail initialization
+	// }
+
+	// err = ACAPI_AddOnAddOnCommunication_InstallAddOnCommandHandler (GS::NewOwned<CreateLinearDimensionCommand> ());
+	// if (DBERROR (err != NoError)) {
+	// 	// Command registration failed - log but don't fail initialization
+	// }
 
 	return err;
 }		// Initialize
