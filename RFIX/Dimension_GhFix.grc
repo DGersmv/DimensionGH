@@ -1,0 +1,38 @@
+﻿/* *****************************************************************************
+// Non-localizable resource description
+// ****************************************************************************/
+
+#include "MDIDs_APICD.h"
+
+
+'MDID' 32500 "Add-On Identifier" {
+	909404777
+	1753895032_DimensionGH
+}
+
+'DATA' 100 "Dimension Gh Html" {
+	"Selection_Test.html"
+}
+
+
+'STR#' 32000 "Add-on Name and Description" {
+/* [  1] */		"Dimension Gh"
+/* [  2] */		"Grasshopper Dimension Bridge for Archicad"
+}
+
+'STR#' 32500 "Strings for the Menu" {
+/* [   ] */		"Test"
+/* [   ] */		"Dimension Gh"
+/* [  1] */			"Dimension Gh Palette^ES^EE^EI^ED^EW^E3^EL"
+}
+
+/* --- Dockable browser palette ----------------------------------------------*/
+
+'GDLG'  32500    Palette | topCaption | close | grow   0   0  450  150  "Dimension Gh"  {
+/* [  1] */ Browser			0   0  450  150
+}
+
+'DLGH'  32500  DLG_32500_Dimension_Gh_Palette {
+1	"Dimension Gh"		Browser_0
+}
+
