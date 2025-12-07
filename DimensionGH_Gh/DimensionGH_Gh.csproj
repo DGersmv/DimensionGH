@@ -77,7 +77,14 @@
     <None Include="README.md" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="Resources\Info227Icon.svg" />
+    <EmbeddedResource Include="Resources\ac16.png" />
+    <EmbeddedResource Include="Resources\ac24.PNG" />
+    <EmbeddedResource Include="Resources\curves16.png" />
+    <EmbeddedResource Include="Resources\curves24.png" />
+    <EmbeddedResource Include="Resources\ref16.png" />
+    <EmbeddedResource Include="Resources\ref24.png" />
+    <EmbeddedResource Include="Resources\seq16.png" />
+    <EmbeddedResource Include="Resources\seq24.png" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- Post-build event to copy to Grasshopper libraries -->

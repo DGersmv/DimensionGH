@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.Linq;
 using Grasshopper.Kernel;
 using Grasshopper.Kernel.Data;
@@ -29,6 +30,13 @@ namespace DimensionGhGh.Components
 		{
 			base.Layout();
 			
+			// Make component more compact but ensure output parameters fit
+			var compactBounds = Bounds;
+			// Keep width standard or slightly reduced to ensure "Success" and "Messages" fit
+			compactBounds.Width = Math.Max(160, compactBounds.Width * 0.95f); // Reduce width by only 5%, min 160px
+			compactBounds.Height = Math.Max(80, compactBounds.Height * 0.85f); // Reduce height by 15%
+			Bounds = compactBounds;
+			
 			// Extend bounds to include button
 			var extendedBounds = Bounds;
 			extendedBounds.Height += 22; // Add space for button (20px + 2px margin)
@@ -50,36 +58,85 @@ namespace DimensionGhGh.Components
 
 		protected override void Render(GH_Canvas canvas, Graphics graphics, GH_CanvasChannel channel)
 		{
+			// Draw background in Wires channel (before base rendering)
+			if (channel == GH_CanvasChannel.Wires)
+			{
+				// Draw component background with rounded corners and Archicad gray color
+				var componentRect = Bounds;
+				var cornerRadius = 4.0f; // Rounded corners radius
+				
+				graphics.SmoothingMode = SmoothingMode.AntiAlias;
+				
+				// Create rounded rectangle path
+				using (var path = new GraphicsPath())
+				{
+					// Top-left corner
+					path.AddArc(componentRect.X, componentRect.Y, cornerRadius * 2, cornerRadius * 2, 180, 90);
+					// Top-right corner
+					path.AddArc(componentRect.Right - cornerRadius * 2, componentRect.Y, cornerRadius * 2, cornerRadius * 2, 270, 90);
+					// Bottom-right corner
+					path.AddArc(componentRect.Right - cornerRadius * 2, componentRect.Bottom - cornerRadius * 2, cornerRadius * 2, cornerRadius * 2, 0, 90);
+					// Bottom-left corner
+					path.AddArc(componentRect.X, componentRect.Bottom - cornerRadius * 2, cornerRadius * 2, cornerRadius * 2, 90, 90);
+					path.CloseFigure();
+					
+					// Fill with Archicad gray color (#E0E0E0)
+					using (var brush = new SolidBrush(Color.FromArgb(255, 224, 224, 224))) // Archicad gray
+					{
+						graphics.FillPath(brush, path);
+					}
+					
+					// Draw border
+					using (var pen = new Pen(Color.FromArgb(255, 192, 192, 192), 1)) // Slightly darker gray border
+					{
+						graphics.DrawPath(pen, path);
+					}
+				}
+			}
+			
+			// Render base component (icon, inputs, outputs) - this will render on top of background
 			base.Render(canvas, graphics, channel);
-
+			
+			// Draw button in Objects channel (after base rendering)
 			if (channel == GH_CanvasChannel.Objects)
 			{
-				// Draw button
+				graphics.SmoothingMode = SmoothingMode.AntiAlias;
+				
 				var buttonRect = ButtonBounds;
+				var buttonRadius = 3.0f;
 				
-				// Button background
-				using (var brush = new SolidBrush(Color.FromArgb(255, 200, 230, 200))) // Light green
+				using (var buttonPath = new GraphicsPath())
 				{
-					graphics.FillRectangle(brush, buttonRect);
-				}
-				
-				// Button border
-				using (var pen = new Pen(Color.FromArgb(255, 100, 150, 100), 1))
-				{
-					graphics.DrawRectangle(pen, buttonRect.X, buttonRect.Y, buttonRect.Width, buttonRect.Height);
-				}
-				
-				// Button text
-				using (var font = new System.Drawing.Font("Arial", 8, System.Drawing.FontStyle.Bold))
-				using (var brush = new SolidBrush(Color.Black))
-				{
-					var textRect = buttonRect;
-					var format = new StringFormat
+					buttonPath.AddArc(buttonRect.X, buttonRect.Y, buttonRadius * 2, buttonRadius * 2, 180, 90);
+					buttonPath.AddArc(buttonRect.Right - buttonRadius * 2, buttonRect.Y, buttonRadius * 2, buttonRadius * 2, 270, 90);
+					buttonPath.AddArc(buttonRect.Right - buttonRadius * 2, buttonRect.Bottom - buttonRadius * 2, buttonRadius * 2, buttonRadius * 2, 0, 90);
+					buttonPath.AddArc(buttonRect.X, buttonRect.Bottom - buttonRadius * 2, buttonRadius * 2, buttonRadius * 2, 90, 90);
+					buttonPath.CloseFigure();
+					
+					// Button background - slightly darker gray
+					using (var brush = new SolidBrush(Color.FromArgb(255, 200, 200, 200)))
 					{
-						Alignment = StringAlignment.Center,
-						LineAlignment = StringAlignment.Center
-					};
-					graphics.DrawString("Update", font, brush, textRect, format);
+						graphics.FillPath(brush, buttonPath);
+					}
+					
+					// Button border
+					using (var pen = new Pen(Color.FromArgb(255, 160, 160, 160), 1))
+					{
+						graphics.DrawPath(pen, buttonPath);
+					}
+					
+					// Button text - black
+					using (var font = new System.Drawing.Font("Arial", 8, System.Drawing.FontStyle.Bold))
+					using (var brush = new SolidBrush(Color.Black))
+					{
+						var textRect = buttonRect;
+						var format = new StringFormat
+						{
+							Alignment = StringAlignment.Center,
+							LineAlignment = StringAlignment.Center
+						};
+						graphics.DrawString("Update", font, brush, textRect, format);
+					}
 				}
 			}
 		}
@@ -172,7 +229,7 @@ namespace DimensionGhGh.Components
 		public DimCreateDimensionComponent()
 			: base("Dim_CreateDimension", "DimCreate",
 				"Main component: Check connection to Archicad and create linear dimensions from point pairs. Click Update button to sync hotspots.",
-				"Info227", "")
+				"Info227", "AC")
 		{
 		}
 
@@ -964,33 +1021,38 @@ namespace DimensionGhGh.Components
 		{
 			get
 			{
-				return CreateDimensionIcon();
+				return LoadIconFromResources("ac24.PNG");
 			}
 		}
 
-		private Bitmap CreateDimensionIcon()
+		/// <summary>
+		/// Load icon from embedded resources
+		/// </summary>
+		private Bitmap LoadIconFromResources(string resourceName)
 		{
+			try
+			{
+				var assembly = System.Reflection.Assembly.GetExecutingAssembly();
+				var fullResourceName = $"DimensionGhGh.Resources.{resourceName}";
+				
+				using (var stream = assembly.GetManifestResourceStream(fullResourceName))
+				{
+					if (stream != null)
+					{
+						return new Bitmap(stream);
+					}
+				}
+			}
+			catch
+			{
+				// Fallback to default icon if loading fails
+			}
+			
+			// Return a simple default icon if resource not found
 			var bitmap = new Bitmap(24, 24);
 			using (var g = Graphics.FromImage(bitmap))
 			{
 				g.Clear(Color.Transparent);
-				g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-
-				using (var pen = new Pen(Color.Black, 2))
-				{
-					// Draw dimension line
-					g.DrawLine(pen, 2, 12, 22, 12);
-					
-					// Draw markers
-					g.DrawLine(pen, 2, 8, 2, 16);
-					g.DrawLine(pen, 22, 8, 22, 16);
-					
-					// Draw arrow heads
-					g.DrawLine(pen, 2, 8, 4, 12);
-					g.DrawLine(pen, 2, 16, 4, 12);
-					g.DrawLine(pen, 22, 8, 20, 12);
-					g.DrawLine(pen, 22, 16, 20, 12);
-				}
 			}
 			return bitmap;
 		}

@@ -21,15 +21,6 @@
 class BrowserPalette final : public DG::Palette,
 							 public DG::PanelObserver
 {
-public:
-	enum SelectionModification { RemoveFromSelection, AddToSelection };
-
-	struct ElementInfo {
-		GS::UniString	guidStr;
-		GS::UniString	typeName;
-		GS::UniString	elemID;
-	};
-
 protected:
 	enum {
 		BrowserId = 1
@@ -39,14 +30,10 @@ protected:
 
 	void InitBrowserControl ();
 	void RegisterACAPIJavaScriptObject ();
-	void UpdateSelectedElementsOnHTML ();
 	void SetMenuItemCheckedState (bool);
 
 	virtual void PanelResized (const DG::PanelResizeEvent& ev) override;
 	virtual	void PanelCloseRequested (const DG::PanelCloseRequestEvent& ev, bool* accepted) override;
-
-	static GS::Array<BrowserPalette::ElementInfo> GetSelectedElements ();
-	static void ModifySelection (const GS::UniString& elemGuidStr, SelectionModification modification);
 
 	static GSErrCode PaletteControlCallBack (Int32 paletteId, API_PaletteMessageID messageID, GS::IntPtr param);
 
@@ -66,7 +53,6 @@ public:
 	void Hide ();
 
 	static GSErrCode				RegisterPaletteControlCallBack ();
-	static GSErrCode SelectionChangeHandler (const API_Neig*);
 };
 
 #endif // BROWSERPALETTE_HPP

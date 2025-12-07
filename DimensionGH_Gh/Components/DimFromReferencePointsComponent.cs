@@ -142,36 +142,38 @@ namespace DimensionGhGh.Components
 		{
 			get
 			{
-				return CreateDimensionIcon();
+				return LoadIconFromResources("ref24.png");
 			}
 		}
 
 		/// <summary>
-		/// Create icon for reference points component
+		/// Load icon from embedded resources
 		/// </summary>
-		private Bitmap CreateDimensionIcon()
+		private Bitmap LoadIconFromResources(string resourceName)
 		{
+			try
+			{
+				var assembly = System.Reflection.Assembly.GetExecutingAssembly();
+				var fullResourceName = $"DimensionGhGh.Resources.{resourceName}";
+				
+				using (var stream = assembly.GetManifestResourceStream(fullResourceName))
+				{
+					if (stream != null)
+					{
+						return new Bitmap(stream);
+					}
+				}
+			}
+			catch
+			{
+				// Fallback to default icon if loading fails
+			}
+			
+			// Return a simple default icon if resource not found
 			var bitmap = new Bitmap(24, 24);
 			using (var g = Graphics.FromImage(bitmap))
 			{
 				g.Clear(Color.Transparent);
-				g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-
-				using (var pen = new Pen(Color.Black, 2))
-				{
-					// Draw reference point (left, larger)
-					g.FillEllipse(Brushes.Black, 2, 8, 6, 6);
-					
-					// Draw points (right, smaller)
-					g.FillEllipse(Brushes.Black, 12, 6, 4, 4);
-					g.FillEllipse(Brushes.Black, 12, 12, 4, 4);
-					g.FillEllipse(Brushes.Black, 12, 18, 4, 4);
-
-					// Draw dimension lines from reference to points
-					g.DrawLine(pen, 8, 11, 12, 8);
-					g.DrawLine(pen, 8, 11, 12, 14);
-					g.DrawLine(pen, 8, 11, 12, 20);
-				}
 			}
 			return bitmap;
 		}

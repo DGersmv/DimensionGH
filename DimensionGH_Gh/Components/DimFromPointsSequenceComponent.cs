@@ -131,34 +131,38 @@ namespace DimensionGhGh.Components
 		{
 			get
 			{
-				return CreateDimensionIcon();
+				return LoadIconFromResources("seq24.png");
 			}
 		}
 
 		/// <summary>
-		/// Create icon for sequential point pairs
+		/// Load icon from embedded resources
 		/// </summary>
-		private Bitmap CreateDimensionIcon()
+		private Bitmap LoadIconFromResources(string resourceName)
 		{
+			try
+			{
+				var assembly = System.Reflection.Assembly.GetExecutingAssembly();
+				var fullResourceName = $"DimensionGhGh.Resources.{resourceName}";
+				
+				using (var stream = assembly.GetManifestResourceStream(fullResourceName))
+				{
+					if (stream != null)
+					{
+						return new Bitmap(stream);
+					}
+				}
+			}
+			catch
+			{
+				// Fallback to default icon if loading fails
+			}
+			
+			// Return a simple default icon if resource not found
 			var bitmap = new Bitmap(24, 24);
 			using (var g = Graphics.FromImage(bitmap))
 			{
 				g.Clear(Color.Transparent);
-				g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-
-				using (var pen = new Pen(Color.Black, 2))
-				{
-					// Draw sequential points
-					g.FillEllipse(Brushes.Black, 2, 10, 4, 4);
-					g.FillEllipse(Brushes.Black, 8, 10, 4, 4);
-					g.FillEllipse(Brushes.Black, 14, 10, 4, 4);
-					g.FillEllipse(Brushes.Black, 20, 10, 4, 4);
-
-					// Draw dimension lines between points
-					g.DrawLine(pen, 6, 12, 8, 12);
-					g.DrawLine(pen, 12, 12, 14, 12);
-					g.DrawLine(pen, 18, 12, 20, 12);
-				}
 			}
 			return bitmap;
 		}

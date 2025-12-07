@@ -211,41 +211,38 @@ namespace DimensionGhGh.Components
 		{
 			get
 			{
-				return CreateDimensionIcon();
+				return LoadIconFromResources("curves24.png");
 			}
 		}
 
-
 		/// <summary>
-		/// Create icon for dimension between lines
+		/// Load icon from embedded resources
 		/// </summary>
-		private Bitmap CreateDimensionIcon()
+		private Bitmap LoadIconFromResources(string resourceName)
 		{
+			try
+			{
+				var assembly = System.Reflection.Assembly.GetExecutingAssembly();
+				var fullResourceName = $"DimensionGhGh.Resources.{resourceName}";
+				
+				using (var stream = assembly.GetManifestResourceStream(fullResourceName))
+				{
+					if (stream != null)
+					{
+						return new Bitmap(stream);
+					}
+				}
+			}
+			catch
+			{
+				// Fallback to default icon if loading fails
+			}
+			
+			// Return a simple default icon if resource not found
 			var bitmap = new Bitmap(24, 24);
 			using (var g = Graphics.FromImage(bitmap))
 			{
 				g.Clear(Color.Transparent);
-				g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-
-				using (var pen = new Pen(Color.Black, 2))
-				{
-					// Draw two lines
-					g.DrawLine(pen, 2, 6, 10, 6);  // Line 1
-					g.DrawLine(pen, 2, 18, 10, 18); // Line 2
-
-					// Draw dimension line between them
-					g.DrawLine(pen, 12, 6, 12, 18);
-
-					// Draw dimension markers
-					g.DrawLine(pen, 12, 4, 12, 8);
-					g.DrawLine(pen, 12, 16, 12, 20);
-
-					// Draw arrow heads
-					g.DrawLine(pen, 12, 4, 14, 6);
-					g.DrawLine(pen, 12, 4, 10, 6);
-					g.DrawLine(pen, 12, 20, 14, 18);
-					g.DrawLine(pen, 12, 20, 10, 18);
-				}
 			}
 			return bitmap;
 		}

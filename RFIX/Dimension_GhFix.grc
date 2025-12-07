@@ -28,8 +28,8 @@
 
 /* --- Dockable browser palette ----------------------------------------------*/
 
-'GDLG'  32500    Palette | topCaption | close | grow   0   0  450  150  "Dimension Gh"  {
-/* [  1] */ Browser			0   0  450  150
+'GDLG'  32500    Palette | topCaption | close | grow   0   0  300  180  "Dimension Gh"  {
+/* [  1] */ Browser			0   0  300  180
 }
 
 'DLGH'  32500  DLG_32500_Dimension_Gh_Palette {

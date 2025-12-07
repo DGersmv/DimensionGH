@@ -93,10 +93,6 @@ GSErrCode Initialize (void)
 	if (DBERROR (err != NoError))
 		return err;
 
-	err = ACAPI_Notification_CatchSelectionChange (BrowserPalette::SelectionChangeHandler);
-	if (DBERROR (err != NoError))
-		return err;
-
 	err = BrowserPalette::RegisterPaletteControlCallBack ();
 	if (DBERROR (err != NoError))
 		return err;

@@ -1,111 +1,100 @@
-
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<!DOCTYPE HTML>
 <html>
 <head>
-	<title>Selection Test</title>
-
+	<meta charset="UTF-8">
+	<title>Dimension Gh</title>
+	<style>
+		body {
+			margin: 0;
+			padding: 15px;
+			font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+			background-color: #F5F5F5;
+			color: #333333;
+			font-size: 13px;
+		}
+		
+		.container {
+			background-color: #FFFFFF;
+			border: 1px solid #D0D0D0;
+			border-radius: 4px;
+			padding: 20px;
+			box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+		}
+		
+		.port-section {
+			text-align: center;
+		}
+		
+		.port-label {
+			font-size: 12px;
+			color: #666666;
+			margin-bottom: 8px;
+		}
+		
+		.port-value {
+			font-size: 24px;
+			font-weight: bold;
+			color: #0066CC;
+			margin: 10px 0;
+			font-family: "Courier New", monospace;
+		}
+		
+		.port-unavailable {
+			color: #999999;
+			font-size: 14px;
+		}
+		
+		.refresh-button {
+			background-color: #E0E0E0;
+			border: 1px solid #C0C0C0;
+			border-radius: 3px;
+			padding: 8px 16px;
+			font-size: 12px;
+			color: #333333;
+			cursor: pointer;
+			margin-top: 10px;
+			transition: background-color 0.2s;
+		}
+		
+		.refresh-button:hover {
+			background-color: #D0D0D0;
+		}
+		
+		.refresh-button:active {
+			background-color: #C0C0C0;
+		}
+	</style>
 	<script type="text/javascript">
 		function UpdateHttpPort () {
+			var portElement = document.getElementById ('httpPort');
+			if (!portElement) return;
+			
+			// Clear previous value
+			portElement.innerHTML = '';
+			
 			ACAPI.GetHttpPort ().then (function (port) {
-				var portElement = document.getElementById ('httpPort');
-				if (portElement) {
-					portElement.innerHTML = port > 0 ? port : "Not available";
+				if (port > 0) {
+					portElement.innerHTML = port;
+					portElement.className = 'port-value';
+				} else {
+					portElement.innerHTML = 'Not available';
+					portElement.className = 'port-value port-unavailable';
 				}
-			});
-		}
-
-		function UpdateSelectedElements () {
-			ACAPI.GetSelectedElements ().then (function (elemInfos) {
-				var selectionTable = document.getElementById ('selection');
-				while (selectionTable.firstChild) {
-					selectionTable.removeChild (selectionTable.firstChild);
-				}
-
-				var index, len;
-				for (index = 0, len = elemInfos.length; index < len; ++index) {
-					console.log(elemInfos[index]);
-					var tr = document.createElement ('tr');
-					selectionTable.appendChild (tr);
-
-					var guidStr = document.createElement ('td');
-					guidStr.innerHTML = elemInfos[index][0];
-					tr.appendChild (guidStr);
-
-					var typeName = document.createElement ('td');
-					typeName.innerHTML = elemInfos[index][1];
-					tr.appendChild (typeName);
-
-					var elemID = document.createElement ('td');
-					elemID.innerHTML = elemInfos[index][2];
-					tr.appendChild (elemID);
-
-					var removeButton = document.createElement ('button');
-					removeButton.innerHTML = '-';
-					removeButton.guidStr = guidStr.innerHTML;
-					removeButton.onclick = function (e) {
-						ACAPI.RemoveElementFromSelection (e.currentTarget.guidStr).then (function (res) {
-						});
-					};
-					tr.appendChild (removeButton);
-				}
-				if (len == 0) {
-					var tr = document.createElement ('tr');
-					selectionTable.appendChild (tr);
-
-					var dummy = document.createElement ('td');
-					dummy.innerHTML = 'Empty Selection';
-					dummy.setAttribute ('colspan', '3');
-					tr.appendChild (dummy);
-				}
-			});
-		}
-
-		function AddElementToSelection () {
-			var elemGuidToAddInput = document.getElementById ('elemGuidToAdd');
-
-			ACAPI.AddElementToSelection (elemGuidToAddInput.value).then (function (res) {
-				elemGuidToAddInput.value = '';
 			});
 		}
 	</script>
 </head>
-
-<body align="center">
-	<table align="center" style="text-align: center;">
-		<thead>
-			<tr>
-				<td colspan="3">Selected Elements:</td>
-			</tr>
-			<tr>
-				<td>GUID</td>
-				<td>Type</td>
-				<td>Element ID</td>
-			</tr>
-		</thead>
-		<tbody id="selection">
-			<tr>
-				<td colspan="3">Empty Selection</td>
-			</tr>
-		</tbody>
-	</table>
-	<br>
-	<form id="frm1" action="/action_page.php">
-		<input type="text" id="elemGuidToAdd" size="40">
-		<input type="button" onclick="AddElementToSelection ()" value="+">
-	</form>
-	<br>
-	<div style="border: 1px solid #ccc; padding: 10px; margin: 10px; background-color: #f9f9f9;">
-		<strong>HTTP Port for Grasshopper:</strong><br>
-		<span id="httpPort" style="font-size: 18px; font-weight: bold; color: #0066cc;">Loading...</span>
-		<br>
-		<button onclick="UpdateHttpPort ()" style="margin-top: 5px;">Refresh Port</button>
+<body>
+	<div class="container">
+		<div class="port-section">
+			<div class="port-label">HTTP Port for Grasshopper</div>
+			<div id="httpPort" class="port-value"></div>
+			<button class="refresh-button" onclick="UpdateHttpPort ()">Refresh</button>
+		</div>
 	</div>
-	<br>
-	<a href="https://www.graphisoft.com">www.graphisoft.com</a>
 	<script type="text/javascript">
 		// Update port when page loads
 		UpdateHttpPort ();
 	</script>
 </body>
-
 </html>
