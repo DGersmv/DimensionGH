@@ -93,10 +93,6 @@ GSErrCode Initialize (void)
 	if (DBERROR (err != NoError))
 		return err;
 
-	err = ACAPI_Notification_CatchSelectionChange (BrowserPalette::SelectionChangeHandler);
-	if (DBERROR (err != NoError))
-		return err;
-
 	err = BrowserPalette::RegisterPaletteControlCallBack ();
 	if (DBERROR (err != NoError))
 		return err;
@@ -120,10 +116,30 @@ GSErrCode Initialize (void)
 	// 	// Command registration failed - log but don't fail initialization
 	// }
 
-	// err = ACAPI_AddOnAddOnCommunication_InstallAddOnCommandHandler (GS::NewOwned<CreateLinearDimensionCommand> ());
-	// if (DBERROR (err != NoError)) {
-	// 	// Command registration failed - log but don't fail initialization
-	// }
+	err = ACAPI_AddOnAddOnCommunication_InstallAddOnCommandHandler (GS::NewOwned<CreateLinearDimensionCommand> ());
+	if (DBERROR (err != NoError)) {
+		// Command registration failed - log but don't fail initialization
+	}
+
+	err = ACAPI_AddOnAddOnCommunication_InstallAddOnCommandHandler (GS::NewOwned<CreateHotspotCommand> ());
+	if (DBERROR (err != NoError)) {
+		// Command registration failed - log but don't fail initialization
+	}
+
+	err = ACAPI_AddOnAddOnCommunication_InstallAddOnCommandHandler (GS::NewOwned<UpdateHotspotCommand> ());
+	if (DBERROR (err != NoError)) {
+		// Command registration failed - log but don't fail initialization
+	}
+
+	err = ACAPI_AddOnAddOnCommunication_InstallAddOnCommandHandler (GS::NewOwned<DeleteHotspotCommand> ());
+	if (DBERROR (err != NoError)) {
+		// Command registration failed - log but don't fail initialization
+	}
+
+	err = ACAPI_AddOnAddOnCommunication_InstallAddOnCommandHandler (GS::NewOwned<DeleteAllHotspotsCommand> ());
+	if (DBERROR (err != NoError)) {
+		// Command registration failed - log but don't fail initialization
+	}
 
 	return err;
 }		// Initialize
@@ -136,5 +152,7 @@ GSErrCode Initialize (void)
 
 GSErrCode FreeData (void)
 {
+	// Clean up all created hotspots when add-on is unloaded
+	HotspotManager::DeleteAllTrackedHotspots();
 	return NoError;
 }		// FreeData

@@ -38,6 +38,11 @@ ResourceObjects/
 *.rc2.res.txt
 *.reslist.txt
 
+# Grasshopper compiled files
+DimensionGH_Gh/bin/
+DimensionGH_Gh/obj/
+DimensionGH_Gh/packages/
+
 # IDE
 .idea/
 *.swp

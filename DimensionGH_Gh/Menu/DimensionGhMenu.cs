@@ -53,90 +53,40 @@ namespace DimensionGhGh.Menu
 		}
 
 		/// <summary>
-		/// Load category icon from embedded resources
+		/// Load category icon from embedded resources (16x16 for menu)
 		/// </summary>
 		private Bitmap LoadCategoryIcon()
 		{
 			try
 			{
 				var assembly = Assembly.GetExecutingAssembly();
-				var resourceName = "DimensionGhGh.Resources.Info227Icon.svg";
+				var resourceName = "DimensionGhGh.Resources.ac16.png";
 				
 				using (var stream = assembly.GetManifestResourceStream(resourceName))
 				{
-					if (stream == null)
+					if (stream != null)
 					{
-						// Try to load from file if not embedded
-						var iconPath = Path.Combine(Path.GetDirectoryName(assembly.Location), "Resources", "Info227Icon.svg");
-						if (File.Exists(iconPath))
-						{
-							return CreateIconFromSvg(File.ReadAllText(iconPath));
-						}
-						return CreateDefaultIcon();
-					}
-					
-					using (var reader = new StreamReader(stream))
-					{
-						var svgContent = reader.ReadToEnd();
-						return CreateIconFromSvg(svgContent);
+						return new Bitmap(stream);
 					}
 				}
 			}
 			catch
 			{
-				return CreateDefaultIcon();
+				// Fallback to default icon if loading fails
 			}
-		}
-
-		/// <summary>
-		/// Create icon from SVG content (simple implementation)
-		/// For production, consider using a proper SVG library
-		/// </summary>
-		private Bitmap CreateIconFromSvg(string svgContent)
-		{
-			// Create a simple bitmap representation
-			// For a proper implementation, use a library like Svg.NET
-			// For now, create a simple icon based on the SVG design
-			var bitmap = new Bitmap(24, 24);
+			
+			// Return a simple default icon if resource not found
+			var bitmap = new Bitmap(16, 16);
 			using (var g = Graphics.FromImage(bitmap))
 			{
 				g.Clear(Color.Transparent);
 				g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
 				
-				// Draw a simple representation based on the SVG (dimension lines)
-				using (var pen = new Pen(Color.Black, 2))
+				using (var pen = new Pen(Color.Black, 1))
 				{
-					// Draw dimension arrow/line representation
-					g.DrawLine(pen, 2, 12, 22, 12); // Main line
-					g.DrawLine(pen, 2, 8, 2, 16);   // Left marker
-					g.DrawLine(pen, 22, 8, 22, 16); // Right marker
-					
-					// Draw arrow heads
-					g.DrawLine(pen, 2, 8, 4, 12);
-					g.DrawLine(pen, 2, 16, 4, 12);
-					g.DrawLine(pen, 22, 8, 20, 12);
-					g.DrawLine(pen, 22, 16, 20, 12);
-				}
-			}
-			return bitmap;
-		}
-
-		/// <summary>
-		/// Create a default icon if SVG loading fails
-		/// </summary>
-		private Bitmap CreateDefaultIcon()
-		{
-			var bitmap = new Bitmap(24, 24);
-			using (var g = Graphics.FromImage(bitmap))
-			{
-				g.Clear(Color.Transparent);
-				g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-				
-				using (var pen = new Pen(Color.Black, 2))
-				{
-					g.DrawLine(pen, 2, 12, 22, 12);
-					g.DrawLine(pen, 2, 8, 2, 16);
-					g.DrawLine(pen, 22, 8, 22, 16);
+					g.DrawLine(pen, 2, 8, 14, 8);
+					g.DrawLine(pen, 2, 6, 2, 10);
+					g.DrawLine(pen, 14, 6, 14, 10);
 				}
 			}
 			return bitmap;

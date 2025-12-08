@@ -3,6 +3,7 @@ using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using DimensionGhGh.Protocol;
 
 namespace DimensionGhGh.Client
@@ -47,6 +48,8 @@ namespace DimensionGhGh.Client
 		{
 			try
 			{
+				// Serialize with JsonProperty attributes (command, parameters)
+				// Don't use CamelCase resolver as we already have JsonProperty attributes
 				var json = JsonConvert.SerializeObject(request);
 				var content = new StringContent(json, Encoding.UTF8, "application/json");
 
@@ -55,15 +58,22 @@ namespace DimensionGhGh.Client
 
 				if (response.IsSuccessStatusCode)
 				{
-					var jsonResponse = JsonConvert.DeserializeObject<JsonResponse>(responseString);
-					return jsonResponse ?? new JsonResponse { Succeeded = false };
+					// Archicad returns response in format: { "result": {...}, "error": {...} }
+					// Parse as JObject first to handle the structure correctly
+					var responseObj = JObject.Parse(responseString);
+					var jsonResponse = new JsonResponse
+					{
+						Result = responseObj["result"] as JObject,
+						Error = responseObj["error"] as JObject
+					};
+					return jsonResponse;
 				}
 				else
 				{
 					return new JsonResponse
 					{
-						Succeeded = false,
-						Error = new Newtonsoft.Json.Linq.JObject
+						Result = null,
+						Error = new JObject
 						{
 							["message"] = $"HTTP {response.StatusCode}: {responseString}"
 						}
@@ -74,8 +84,8 @@ namespace DimensionGhGh.Client
 			{
 				return new JsonResponse
 				{
-					Succeeded = false,
-					Error = new Newtonsoft.Json.Linq.JObject
+					Result = null,
+					Error = new JObject
 					{
 						["message"] = "Request timeout"
 					}
@@ -85,8 +95,8 @@ namespace DimensionGhGh.Client
 			{
 				return new JsonResponse
 				{
-					Succeeded = false,
-					Error = new Newtonsoft.Json.Linq.JObject
+					Result = null,
+					Error = new JObject
 					{
 						["message"] = ex.Message
 					}
@@ -110,8 +120,8 @@ namespace DimensionGhGh.Client
 			{
 				return new JsonResponse
 				{
-					Succeeded = false,
-					Error = new Newtonsoft.Json.Linq.JObject
+					Result = null,
+					Error = new JObject
 					{
 						["message"] = $"Connection error: {ex.Message}"
 					}

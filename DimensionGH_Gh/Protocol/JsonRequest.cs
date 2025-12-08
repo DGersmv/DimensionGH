@@ -7,7 +7,10 @@ namespace DimensionGhGh.Protocol
 	/// </summary>
 	public class JsonRequest
 	{
+		[Newtonsoft.Json.JsonProperty("command")]
 		public string Command { get; set; }
+		
+		[Newtonsoft.Json.JsonProperty("parameters")]
 		public JObject Parameters { get; set; }
 
 		public JsonRequest()
