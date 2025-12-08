@@ -50,9 +50,11 @@ namespace DimensionGhGh.Components
 
 		protected override void RegisterOutputParams(GH_OutputParamManager pManager)
 		{
-			pManager.AddGenericParameter("PointPair", "PP", "List of point pairs for dimension creation", GH_ParamAccess.list);
-			pManager.AddPointParameter("Point1", "P1", "List of reference points (repeated)", GH_ParamAccess.list);
-			pManager.AddPointParameter("Point2", "P2", "List of points from Points input", GH_ParamAccess.list);
+			pManager.AddGenericParameter("PointPair", "PP", "List of point pairs for dimension creation (projected to XY plane)", GH_ParamAccess.list);
+			pManager.AddPointParameter("Point1", "P1", "List of reference points (repeated, projected to XY plane)", GH_ParamAccess.list);
+			pManager.AddPointParameter("Point2", "P2", "List of points from Points input (projected to XY plane)", GH_ParamAccess.list);
+			pManager.AddPointParameter("ReferencePoints_2D", "RP2D", "All projected reference points on XY plane for visualization", GH_ParamAccess.list);
+			pManager.AddPointParameter("Points_2D", "P2D", "All projected points on XY plane for visualization", GH_ParamAccess.list);
 		}
 
 		protected override void SolveInstance(IGH_DataAccess DA)
@@ -79,41 +81,76 @@ namespace DimensionGhGh.Components
 				DA.SetDataList(0, new List<PointPair>());
 				DA.SetDataList(1, new List<Point3d>());
 				DA.SetDataList(2, new List<Point3d>());
+				DA.SetDataList(3, new List<Point3d>());
+				DA.SetDataList(4, new List<Point3d>());
 				return;
 			}
 
-			// Create pairs: for each reference point, pair with all points from the list
+			// Step 1: Project all points to XY plane
+			var referencePoints_2d = new List<Point3d>();
+			var points_2d = new List<Point3d>();
+
+			foreach (Point3d pt in referencePoints)
+			{
+				if (pt.IsValid)
+				{
+					// Project point to XY plane (set Z = 0)
+					Point3d pt_2d = new Point3d(pt.X, pt.Y, 0);
+					referencePoints_2d.Add(pt_2d);
+				}
+				else
+				{
+					referencePoints_2d.Add(pt); // Keep invalid point as is
+				}
+			}
+
+			foreach (Point3d pt in points)
+			{
+				if (pt.IsValid)
+				{
+					// Project point to XY plane (set Z = 0)
+					Point3d pt_2d = new Point3d(pt.X, pt.Y, 0);
+					points_2d.Add(pt_2d);
+				}
+				else
+				{
+					points_2d.Add(pt); // Keep invalid point as is
+				}
+			}
+
+			// Step 2: Create pairs from projected points: for each reference point, pair with all points from the list
 			var pointPairs = new List<PointPair>();
 			var points1 = new List<Point3d>();
 			var points2 = new List<Point3d>();
 
 			int pairIndex = 0;
-			for (int refIdx = 0; refIdx < referencePoints.Count; refIdx++)
+			for (int refIdx = 0; refIdx < referencePoints_2d.Count; refIdx++)
 			{
-				Point3d refPoint = referencePoints[refIdx];
+				Point3d refPoint_2d = referencePoints_2d[refIdx];
 
 				// Validate reference point
-				if (!refPoint.IsValid)
+				if (!refPoint_2d.IsValid)
 				{
 					AddRuntimeMessage(GH_RuntimeMessageLevel.Warning, $"Invalid reference point at index {refIdx}, skipping");
 					continue;
 				}
 
-				for (int ptIdx = 0; ptIdx < points.Count; ptIdx++)
+				for (int ptIdx = 0; ptIdx < points_2d.Count; ptIdx++)
 				{
-					Point3d point = points[ptIdx];
+					Point3d point_2d = points_2d[ptIdx];
 
 					// Validate point
-					if (!point.IsValid)
+					if (!point_2d.IsValid)
 					{
 						AddRuntimeMessage(GH_RuntimeMessageLevel.Warning, $"Invalid point at index {ptIdx}, skipping pair");
 						continue;
 					}
 
-					// Check if points are too close
-					if (refPoint.DistanceTo(point) < 1e-6)
+					// Check if points are too close (distance between projected points)
+					double distance_2d = refPoint_2d.DistanceTo(point_2d);
+					if (distance_2d < 1e-6)
 					{
-						AddRuntimeMessage(GH_RuntimeMessageLevel.Warning, $"Reference point {refIdx} and point {ptIdx} are too close, skipping pair");
+						AddRuntimeMessage(GH_RuntimeMessageLevel.Warning, $"Reference point {refIdx} and point {ptIdx} are too close (distance: {distance_2d:F6}), skipping pair");
 						continue;
 					}
 
@@ -122,11 +159,11 @@ namespace DimensionGhGh.Components
 					Guid guid1 = GetStablePointGuid(0, refIdx);
 					Guid guid2 = GetStablePointGuid(1, ptIdx);
 
-					// Create PointPair
-					var pair = new PointPair(refPoint, point, guid1, guid2);
+					// Create PointPair using projected points (in XY plane)
+					var pair = new PointPair(refPoint_2d, point_2d, guid1, guid2);
 					pointPairs.Add(pair);
-					points1.Add(refPoint);
-					points2.Add(point);
+					points1.Add(refPoint_2d);
+					points2.Add(point_2d);
 					
 					pairIndex++;
 				}
@@ -136,6 +173,8 @@ namespace DimensionGhGh.Components
 			DA.SetDataList(0, pointPairs);
 			DA.SetDataList(1, points1);
 			DA.SetDataList(2, points2);
+			DA.SetDataList(3, referencePoints_2d); // Output all projected reference points for visualization
+			DA.SetDataList(4, points_2d); // Output all projected points for visualization
 		}
 
 		protected override Bitmap Icon

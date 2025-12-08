@@ -28,6 +28,19 @@ Copy-Item $dllPath $targetFile -Force
 Write-Host "Плагин установлен:" -ForegroundColor Green
 Write-Host "  Из: $dllPath" -ForegroundColor Gray
 Write-Host "  В:  $targetFile" -ForegroundColor Gray
+
+# Copy Newtonsoft.Json.dll if it exists
+$jsonDllPath = Join-Path (Split-Path $dllPath) "Newtonsoft.Json.dll"
+if (Test-Path $jsonDllPath) {
+    $jsonTargetFile = "$targetDir\Newtonsoft.Json.dll"
+    Copy-Item $jsonDllPath $jsonTargetFile -Force
+    Write-Host "Newtonsoft.Json.dll скопирован:" -ForegroundColor Green
+    Write-Host "  В:  $jsonTargetFile" -ForegroundColor Gray
+} else {
+    Write-Host "Предупреждение: Newtonsoft.Json.dll не найден в папке сборки!" -ForegroundColor Yellow
+    Write-Host "  Убедитесь, что он скопирован вручную в: $targetDir" -ForegroundColor Yellow
+}
+
 Write-Host ""
-Write-Host "Перезапустите Grasshopper, чтобы увидеть категорию '227info'" -ForegroundColor Yellow
+Write-Host "Перезапустите Grasshopper, чтобы увидеть категорию 'Dimension Gh'" -ForegroundColor Yellow
 

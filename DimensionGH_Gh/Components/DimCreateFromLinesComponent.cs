@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using Grasshopper.Kernel;
 using Grasshopper.Kernel.Parameters;
@@ -59,6 +60,8 @@ namespace DimensionGhGh.Components
 			pManager.AddGenericParameter("PointPair", "PP", "List of point pairs for dimension creation", GH_ParamAccess.list);
 			pManager.AddPointParameter("Point1", "P1", "List of points on Curve1", GH_ParamAccess.list);
 			pManager.AddPointParameter("Point2", "P2", "List of points on Curve2", GH_ParamAccess.list);
+			pManager.AddCurveParameter("Curve1_2D", "C1", "Projected Curve1 on XY plane (step is measured along this curve)", GH_ParamAccess.item);
+			pManager.AddCurveParameter("Curve2_2D", "C2", "Projected Curve2 on XY plane", GH_ParamAccess.item);
 		}
 
 		protected override void SolveInstance(IGH_DataAccess DA)
@@ -95,18 +98,51 @@ namespace DimensionGhGh.Components
 				return;
 			}
 
-			// Get start points of both curves
-			Point3d start1 = curve1.PointAtStart;
-			Point3d start2 = curve2.PointAtStart;
+			// Step 1: Project both curves to XY plane
+			Plane xyPlane = Plane.WorldXY;
+			Curve curve1_2d = Curve.ProjectToPlane(curve1, xyPlane);
+			Curve curve2_2d = Curve.ProjectToPlane(curve2, xyPlane);
 
-			if (!start1.IsValid || !start2.IsValid)
+			if (curve1_2d == null || !curve1_2d.IsValid || curve2_2d == null || !curve2_2d.IsValid)
 			{
-				AddRuntimeMessage(GH_RuntimeMessageLevel.Error, "Invalid start points on curves");
+				AddRuntimeMessage(GH_RuntimeMessageLevel.Error, "Failed to project curves to XY plane");
 				return;
 			}
 
-			// Calculate direction vector from start1 to start2
-			Vector3d direction = start2 - start1;
+			// Step 2: Find start points on projected curves (closest to origin 0,0)
+			Point3d origin = new Point3d(0, 0, 0);
+			
+			// Get start and end points of projected curves
+			Point3d start1_2d = curve1_2d.PointAtStart;
+			Point3d end1_2d = curve1_2d.PointAtEnd;
+			Point3d start2_2d = curve2_2d.PointAtStart;
+			Point3d end2_2d = curve2_2d.PointAtEnd;
+			
+			// For Curve1: choose start or end point that is closer to origin (0,0)
+			if (end1_2d.DistanceTo(origin) < start1_2d.DistanceTo(origin))
+			{
+				// End point is closer - reverse curve so that end becomes start
+				start1_2d = end1_2d;
+				curve1_2d.Reverse();
+			}
+			// Otherwise start1_2d is already correct
+			
+			// For Curve2: choose start or end point that is closer to origin (0,0)
+			if (end2_2d.DistanceTo(origin) < start2_2d.DistanceTo(origin))
+			{
+				// End point is closer - reverse curve so that end becomes start
+				start2_2d = end2_2d;
+				curve2_2d.Reverse();
+			}
+			// Otherwise start2_2d is already correct
+
+			// Lists for output
+			var pointPairs = new System.Collections.Generic.List<PointPair>();
+			var points1 = new System.Collections.Generic.List<Point3d>();
+			var points2 = new System.Collections.Generic.List<Point3d>();
+
+			// Step 3: Calculate direction vector from first two points (in XY plane)
+			Vector3d direction = start2_2d - start1_2d;
 			if (direction.Length < 1e-6)
 			{
 				AddRuntimeMessage(GH_RuntimeMessageLevel.Warning, "Start points are too close, direction vector is zero");
@@ -114,86 +150,83 @@ namespace DimensionGhGh.Components
 			}
 			direction.Unitize(); // Normalize direction vector
 
-			// Lists for output
-			var pointPairs = new System.Collections.Generic.List<PointPair>();
-			var points1 = new System.Collections.Generic.List<Point3d>();
-			var points2 = new System.Collections.Generic.List<Point3d>();
-
-			// If Step = 0, use only start points (original behavior)
+			// Step 4: If Step = 0, use only first two points (from projected curves in XY plane)
 			if (step <= 0.0)
 			{
-				Guid pointGuid1 = GetStablePointGuid(0, 0);
-				Guid pointGuid2 = GetStablePointGuid(1, 0);
-				var pointPair = new PointPair(start1, start2, pointGuid1, pointGuid2);
+				// Use projected points directly (in XY plane) for dimensions
+				Guid guid1 = GetStablePointGuid(0, 0);
+				Guid guid2 = GetStablePointGuid(1, 0);
+				var pair = new PointPair(start1_2d, start2_2d, guid1, guid2);
 				
-				pointPairs.Add(pointPair);
-				points1.Add(start1);
-				points2.Add(start2);
+				pointPairs.Add(pair);
+				points1.Add(start1_2d);
+				points2.Add(start2_2d);
 			}
 			else
 			{
-				// Step > 0: Find intersections along Curve1 at Step intervals
-				double curveLength = curve1.GetLength();
+				// Step > 0: Find points along projected Curve1 at Step intervals
+				double curve1Length_2d = curve1_2d.GetLength();
 				double currentLength = 0.0;
 				int pointIndex = 0;
+				int maxIterations = 1000;
+				int iterations = 0;
 
-				// Always include the first pair (start points)
-				Guid pointGuid1 = GetStablePointGuid(0, pointIndex);
-				Guid pointGuid2 = GetStablePointGuid(1, pointIndex);
-				var firstPair = new PointPair(start1, start2, pointGuid1, pointGuid2);
+				// Always include the first pair (start points from projected curves in XY plane)
+				Guid guid1 = GetStablePointGuid(0, pointIndex);
+				Guid guid2 = GetStablePointGuid(1, pointIndex);
+				var firstPair = new PointPair(start1_2d, start2_2d, guid1, guid2);
 				pointPairs.Add(firstPair);
-				points1.Add(start1);
-				points2.Add(start2);
+				points1.Add(start1_2d);
+				points2.Add(start2_2d);
 				pointIndex++;
 
-				// Continue finding intersections along Curve1
+				// Continue finding intersections along projected Curve1
 				currentLength = step;
-				while (currentLength < curveLength)
+				while (currentLength < curve1Length_2d && iterations < maxIterations)
 				{
-					// Find point on Curve1 at currentLength distance from start
-					double t;
-					if (!curve1.LengthParameter(currentLength, out t))
-					{
-						// Cannot find parameter for this length, stop
-						break;
-					}
+					iterations++;
 
-					Point3d pointOnCurve1 = curve1.PointAt(t);
-					if (!pointOnCurve1.IsValid)
+					// Find point on projected Curve1 at currentLength distance from start
+					double t_2d;
+					if (!curve1_2d.LengthParameter(currentLength, out t_2d))
 					{
 						break;
 					}
 
-					// Create a line from pointOnCurve1 in direction of direction vector
-					// Use a long enough line to ensure intersection with Curve2
-					double searchDistance = curve2.GetLength() * 2.0; // Use 2x curve length for safety
-					Point3d lineEnd = pointOnCurve1 + direction * searchDistance;
-					Line searchLine = new Line(pointOnCurve1, lineEnd);
+					Point3d pointOnCurve1_2d = curve1_2d.PointAt(t_2d);
+					if (!pointOnCurve1_2d.IsValid)
+					{
+						break;
+					}
 
-					// Find intersection between search line and Curve2
-					var intersectionEvents = Rhino.Geometry.Intersect.Intersection.CurveLine(curve2, searchLine, 0.001, 0.001);
-					
+					// Create a line from pointOnCurve1_2d in direction of direction vector (in XY plane)
+					double searchDistance = Math.Max(curve2_2d.GetLength() * 2.0, 1000.0);
+					Point3d lineEnd_2d = pointOnCurve1_2d + direction * searchDistance;
+					Line searchLine = new Line(pointOnCurve1_2d, lineEnd_2d);
+
+					// Find intersection between search line and projected Curve2
+					double intersectionTolerance = 0.001;
+					var intersectionEvents = Rhino.Geometry.Intersect.Intersection.CurveLine(curve2_2d, searchLine, intersectionTolerance, intersectionTolerance);
+
 					if (intersectionEvents != null && intersectionEvents.Count > 0)
 					{
 						// Use the first intersection point
 						var intersection = intersectionEvents[0];
-						Point3d pointOnCurve2 = intersection.PointA; // Point on Curve2
+						Point3d pointOnCurve2_2d = intersection.PointA; // Point on projected Curve2
 
-						// Create PointPair
-						Guid guid1 = GetStablePointGuid(0, pointIndex);
-						Guid guid2 = GetStablePointGuid(1, pointIndex);
-						var pair = new PointPair(pointOnCurve1, pointOnCurve2, guid1, guid2);
+						if (pointOnCurve2_2d.IsValid)
+						{
+							// Use projected points directly (in XY plane) for dimensions
+							Guid guid1_current = GetStablePointGuid(0, pointIndex);
+							Guid guid2_current = GetStablePointGuid(1, pointIndex);
+							var pair = new PointPair(pointOnCurve1_2d, pointOnCurve2_2d, guid1_current, guid2_current);
 
-						pointPairs.Add(pair);
-						points1.Add(pointOnCurve1);
-						points2.Add(pointOnCurve2);
+							pointPairs.Add(pair);
+							points1.Add(pointOnCurve1_2d);
+							points2.Add(pointOnCurve2_2d);
 
-						pointIndex++;
-					}
-					else
-					{
-						// No intersection found - stop searching
-						break;
+							pointIndex++;
+						}
 					}
 
 					// Move to next step
@@ -205,6 +238,8 @@ namespace DimensionGhGh.Components
 			DA.SetDataList(0, pointPairs);
 			DA.SetDataList(1, points1);
 			DA.SetDataList(2, points2);
+			DA.SetData(3, curve1_2d); // Output projected Curve1 for visualization
+			DA.SetData(4, curve2_2d); // Output projected Curve2 for visualization
 		}
 
 		protected override Bitmap Icon

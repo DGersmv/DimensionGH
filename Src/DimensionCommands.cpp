@@ -2,6 +2,7 @@
 // Source code for Dimension Commands
 // *****************************************************************************
 
+#include <cstring>
 #include "DimensionCommands.hpp"
 #include "ObjectState.hpp"
 #include "DimensionHelper.hpp"
@@ -425,14 +426,23 @@ namespace HotspotManager {
 	void RemoveHotspot(const API_Guid& hotspotGuid)
 	{
 		for (UIndex i = 0; i < g_createdHotspots.GetSize(); ++i) {
-			if (g_createdHotspots[i] == hotspotGuid) {
+			// Compare GUIDs using memcmp (API_Guid doesn't have == operator in AC27)
+			if (memcmp(&g_createdHotspots[i], &hotspotGuid, sizeof(API_Guid)) == 0) {
 				g_createdHotspots.Delete(i);
 				// Remove from map
+				// Need to collect keys first, then delete (can't delete during iteration)
+				GS::Array<GS::UniString> keysToDelete;
 				for (auto it = g_rhinoToHotspotMap.Begin(); it != g_rhinoToHotspotMap.End(); ++it) {
-					if (it->value == hotspotGuid) {
-						g_rhinoToHotspotMap.Delete(it->key);
+					// Compare GUIDs using memcmp
+					if (memcmp(&it->value, &hotspotGuid, sizeof(API_Guid)) == 0) {
+						// Get key value
+						keysToDelete.Push(it->key);
 						break;
 					}
+				}
+				// Delete collected keys
+				for (UIndex i = 0; i < keysToDelete.GetSize(); ++i) {
+					g_rhinoToHotspotMap.Delete(keysToDelete[i]);
 				}
 				break;
 			}

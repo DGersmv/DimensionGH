@@ -69,3 +69,5 @@ if (Test-Path $dllPath) {
     Write-Host "   ✗ DLL не найден. Соберите проект!" -ForegroundColor Red
 }
 
+
+

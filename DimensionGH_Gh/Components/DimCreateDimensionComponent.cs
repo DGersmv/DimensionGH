@@ -13,7 +13,6 @@ using DimensionGhGh.Client;
 using DimensionGhGh.Protocol;
 using Newtonsoft.Json.Linq;
 using Rhino.Geometry;
-using Rhino.DocObjects;
 
 namespace DimensionGhGh.Components
 {
@@ -30,15 +29,11 @@ namespace DimensionGhGh.Components
 		{
 			base.Layout();
 			
-			// Make component more compact but ensure output parameters fit
-			var compactBounds = Bounds;
-			// Keep width standard or slightly reduced to ensure "Success" and "Messages" fit
-			compactBounds.Width = Math.Max(160, compactBounds.Width * 0.95f); // Reduce width by only 5%, min 160px
-			compactBounds.Height = Math.Max(80, compactBounds.Height * 0.85f); // Reduce height by 15%
-			Bounds = compactBounds;
+			// Get the base layout bounds - let Grasshopper calculate proper size
+			var baseBounds = Bounds;
 			
-			// Extend bounds to include button
-			var extendedBounds = Bounds;
+			// Extend bounds to include button at the bottom
+			var extendedBounds = baseBounds;
 			extendedBounds.Height += 22; // Add space for button (20px + 2px margin)
 			Bounds = extendedBounds;
 			
@@ -103,7 +98,7 @@ namespace DimensionGhGh.Components
 				graphics.SmoothingMode = SmoothingMode.AntiAlias;
 				
 				var buttonRect = ButtonBounds;
-				var buttonRadius = 3.0f;
+				var buttonRadius = 2.0f; // Match Archicad style (2px radius)
 				
 				using (var buttonPath = new GraphicsPath())
 				{
@@ -113,21 +108,44 @@ namespace DimensionGhGh.Components
 					buttonPath.AddArc(buttonRect.X, buttonRect.Bottom - buttonRadius * 2, buttonRadius * 2, buttonRadius * 2, 90, 90);
 					buttonPath.CloseFigure();
 					
-					// Button background - slightly darker gray
-					using (var brush = new SolidBrush(Color.FromArgb(255, 200, 200, 200)))
+					// Button background - Archicad style gradient: #ffffff -> #f2f2f2 -> #e2e2e2
+					using (var brush = new LinearGradientBrush(
+						new PointF(buttonRect.Left, buttonRect.Top),
+						new PointF(buttonRect.Left, buttonRect.Bottom),
+						Color.FromArgb(255, 255, 255, 255),      // #ffffff top
+						Color.FromArgb(255, 226, 226, 226)))    // #e2e2e2 bottom (approximate middle #f2f2f2)
 					{
+						// Set middle color for gradient
+						var blend = new ColorBlend(3);
+						blend.Colors = new Color[] {
+							Color.FromArgb(255, 255, 255, 255),      // #ffffff 0%
+							Color.FromArgb(255, 242, 242, 242),      // #f2f2f2 50%
+							Color.FromArgb(255, 226, 226, 226)      // #e2e2e2 100%
+						};
+						blend.Positions = new float[] { 0f, 0.5f, 1f };
+						brush.InterpolationColors = blend;
+						
 						graphics.FillPath(brush, buttonPath);
 					}
 					
-					// Button border
-					using (var pen = new Pen(Color.FromArgb(255, 160, 160, 160), 1))
+					// Button border - rgba(0,0,0,0.25) = #404040 with alpha
+					using (var pen = new Pen(Color.FromArgb(64, 0, 0, 0), 1)) // rgba(0,0,0,0.25)
 					{
 						graphics.DrawPath(pen, buttonPath);
 					}
 					
-					// Button text - black
+					// Inner highlight shadow - 0 1px 0 #ffffff inset
+					using (var highlightPen = new Pen(Color.FromArgb(128, 255, 255, 255), 1))
+					{
+						var highlightRect = buttonRect;
+						highlightRect.Height = 1;
+						graphics.DrawLine(highlightPen, highlightRect.Left + buttonRadius, highlightRect.Top, 
+							highlightRect.Right - buttonRadius, highlightRect.Top);
+					}
+					
+					// Button text - #2f2f2f (dark gray, not black)
 					using (var font = new System.Drawing.Font("Arial", 8, System.Drawing.FontStyle.Bold))
-					using (var brush = new SolidBrush(Color.Black))
+					using (var brush = new SolidBrush(Color.FromArgb(255, 47, 47, 47))) // #2f2f2f
 					{
 						var textRect = buttonRect;
 						var format = new StringFormat
@@ -256,6 +274,10 @@ namespace DimensionGhGh.Components
 		{
 			pManager.AddBooleanParameter("Success", "S", "Success status for each dimension", GH_ParamAccess.list);
 			pManager.AddTextParameter("Messages", "M", "Messages for each dimension", GH_ParamAccess.list);
+			pManager.AddCurveParameter("DimensionLines", "DL", "Dimension lines for visualization in Grasshopper", GH_ParamAccess.list);
+			pManager.AddPointParameter("Points", "P", "Dimension points (start and end)", GH_ParamAccess.list);
+			pManager.AddTextParameter("DimensionTexts", "DT", "Dimension text values", GH_ParamAccess.list);
+			pManager.AddGeometryParameter("TextDots", "TD", "Text dots for displaying dimension values in viewport", GH_ParamAccess.list);
 		}
 
 
@@ -429,6 +451,12 @@ namespace DimensionGhGh.Components
 			// Create dimensions for each point pair
 			List<bool> successes = new List<bool>();
 			List<string> messages = new List<string>();
+			
+			// Lists for Grasshopper visualization output
+			List<Curve> dimensionLines = new List<Curve>();
+			List<Point3d> dimensionPoints = new List<Point3d>();
+			List<string> dimensionTexts = new List<string>();
+			List<GeometryBase> textDots = new List<GeometryBase>();
 
 			// Read offset once for all pairs (it's an item parameter, same value for all)
 			// Offset is already read at line 219, but ensure it's available in the loop scope
@@ -856,10 +884,10 @@ namespace DimensionGhGh.Components
 					successes.Add(dimensionCreated);
 					messages.Add(dimensionMessage ?? "Unknown status");
 					
-					// Create visualization in Rhino (only if dimension was created)
+					// Create visualization geometry for Grasshopper (only if dimension was created)
 					if (dimensionCreated)
 					{
-						CreateRhinoDimension(pair.Point1, pair.Point2);
+						CreateGrasshopperDimensionGeometry(pair.Point1, pair.Point2, dimensionLines, dimensionPoints, dimensionTexts, textDots);
 					}
 					
 					if (!dimensionCreated)
@@ -890,6 +918,10 @@ namespace DimensionGhGh.Components
 			
 			DA.SetDataList(0, successes);
 			DA.SetDataList(1, messages);
+			DA.SetDataList(2, dimensionLines);
+			DA.SetDataList(3, dimensionPoints);
+			DA.SetDataList(4, dimensionTexts);
+			DA.SetDataList(5, textDots);
 			
 			// Debug output
 			if (pointPairs.Count > 0)
@@ -899,122 +931,91 @@ namespace DimensionGhGh.Components
 		}
 
 		/// <summary>
-		/// Create dimension line in Rhino for visualization
+		/// Create dimension geometry for visualization in Grasshopper
 		/// </summary>
-		private void CreateRhinoDimension(Point3d pt1, Point3d pt2)
+		private void CreateGrasshopperDimensionGeometry(Point3d pt1, Point3d pt2, 
+			List<Curve> dimensionLines, List<Point3d> dimensionPoints, List<string> dimensionTexts, List<GeometryBase> textDots)
 		{
-			var doc = Rhino.RhinoDoc.ActiveDoc;
-			if (doc == null)
-				return;
-
 			// Calculate distance between points
 			double distance = pt1.DistanceTo(pt2);
 
-			// Create a line between the points
+			// Create dimension line between the points
 			Line dimensionLine = new Line(pt1, pt2);
-			
-			// Add the line to the document
-			Guid lineId = doc.Objects.AddLine(dimensionLine);
-			if (lineId != Guid.Empty)
-			{
-				// Set line color to dimension color (light blue)
-				var obj = doc.Objects.Find(lineId);
-				if (obj != null)
-				{
-					obj.Attributes.ColorSource = ObjectColorSource.ColorFromObject;
-					obj.Attributes.ObjectColor = System.Drawing.Color.FromArgb(255, 100, 150, 255); // Light blue
-					obj.CommitChanges();
-				}
-			}
+			dimensionLines.Add(new LineCurve(dimensionLine));
 
-			// Create text annotation with distance
+			// Add points to output
+			dimensionPoints.Add(pt1);
+			dimensionPoints.Add(pt2);
+
+			// Calculate midpoint and direction for text placement
 			Point3d midPoint = (pt1 + pt2) / 2.0;
 			Vector3d direction = pt2 - pt1;
-			direction.Unitize();
+			if (direction.Length > 1e-6)
+			{
+				direction.Unitize();
+			}
+			else
+			{
+				direction = Vector3d.XAxis; // Default direction if points are too close
+			}
 			
 			// Perpendicular vector for offset
 			Vector3d offset = new Vector3d(-direction.Y, direction.X, 0);
 			offset *= (distance * 0.1); // 10% of distance as offset
 			
 			Point3d textPoint = midPoint + offset;
+			dimensionPoints.Add(textPoint); // Add text point for visualization
 			
 			// Format distance text
-			var unitSystem = doc.ModelUnitSystem;
+			// distance is already in Rhino units (mm if Rhino is set to millimeters)
+			// We just need to format it correctly without any conversion
+			var doc = Rhino.RhinoDoc.ActiveDoc;
+			var unitSystem = doc != null ? doc.ModelUnitSystem : Rhino.UnitSystem.Millimeters;
 			string unitName = "units";
-			double displayDistance = distance;
+			double displayDistance = distance; // Use distance as-is, it's already in correct units
 			
 			if (unitSystem == Rhino.UnitSystem.Meters)
 			{
 				unitName = "m";
-				displayDistance = distance;
+				displayDistance = distance; // distance is already in meters
 			}
 			else if (unitSystem == Rhino.UnitSystem.Millimeters)
 			{
 				unitName = "mm";
-				displayDistance = distance * 1000.0;
+				displayDistance = distance; // distance is already in millimeters, no conversion needed
 			}
 			else if (unitSystem == Rhino.UnitSystem.Centimeters)
 			{
 				unitName = "cm";
-				displayDistance = distance * 100.0;
+				displayDistance = distance; // distance is already in centimeters
 			}
 			
 			string distanceText = unitSystem == Rhino.UnitSystem.Millimeters 
 				? $"{displayDistance:F0} {unitName}" 
 				: $"{displayDistance:F2} {unitName}";
+			
+			dimensionTexts.Add(distanceText);
+			
+			// Create TextDot for displaying text in viewport
+			// TextDot displays text at a point location in the viewport
+			TextDot textDot = new TextDot(distanceText, textPoint);
+			textDots.Add(textDot);
 
-			// Create text object
-			var text = new TextEntity();
-			text.Plane = new Plane(textPoint, Vector3d.ZAxis);
-			text.PlainText = distanceText;
-
-			Guid textId = doc.Objects.AddText(text);
-			if (textId != Guid.Empty)
-			{
-				var textObj = doc.Objects.Find(textId);
-				if (textObj != null)
-				{
-					textObj.Attributes.ColorSource = ObjectColorSource.ColorFromObject;
-					textObj.Attributes.ObjectColor = System.Drawing.Color.FromArgb(255, 100, 150, 255);
-					textObj.CommitChanges();
-				}
-			}
-
-			// Create extension lines
+			// Create extension lines for visualization
 			Vector3d perp = new Vector3d(-direction.Y, direction.X, 0);
-			perp.Unitize();
+			if (perp.Length > 1e-6)
+			{
+				perp.Unitize();
+			}
 			perp *= (distance * 0.05);
 
 			// Extension line at point1
 			Line extLine1 = new Line(pt1 - perp, pt1 + perp);
-			Guid ext1Id = doc.Objects.AddLine(extLine1);
-			if (ext1Id != Guid.Empty)
-			{
-				var ext1Obj = doc.Objects.Find(ext1Id);
-				if (ext1Obj != null)
-				{
-					ext1Obj.Attributes.ColorSource = ObjectColorSource.ColorFromObject;
-					ext1Obj.Attributes.ObjectColor = System.Drawing.Color.FromArgb(255, 100, 150, 255);
-					ext1Obj.CommitChanges();
-				}
-			}
+			dimensionLines.Add(new LineCurve(extLine1));
 
 			// Extension line at point2
 			Line extLine2 = new Line(pt2 - perp, pt2 + perp);
-			Guid ext2Id = doc.Objects.AddLine(extLine2);
-			if (ext2Id != Guid.Empty)
-			{
-				var ext2Obj = doc.Objects.Find(ext2Id);
-				if (ext2Obj != null)
-				{
-					ext2Obj.Attributes.ColorSource = ObjectColorSource.ColorFromObject;
-					ext2Obj.Attributes.ObjectColor = System.Drawing.Color.FromArgb(255, 100, 150, 255);
-					ext2Obj.CommitChanges();
-				}
-			}
-
-			// Redraw viewports
-			doc.Views.Redraw();
+			dimensionLines.Add(new LineCurve(extLine2));
 		}
 
 		protected override Bitmap Icon

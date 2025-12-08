@@ -62,3 +62,5 @@
 2. **В Windows:** %APPDATA%\Grasshopper\Logs
 3. **В Rhino:** Включите "Show loading messages" через команду `GrasshopperDeveloperSettings`
 
+
+
